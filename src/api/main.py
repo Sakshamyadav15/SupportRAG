@@ -1,236 +1,279 @@
 """
-FastAPI application for SupportRAG.
-Provides RESTful API endpoints for the RAG system.
+Enhanced FastAPI application with dual vector store support
+Endpoints for ingestion and querying with fallback logic
 """
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-import time
+from typing import List, Dict, Any
+from pydantic import BaseModel, Field
 
-from src.config import settings
-from src.models.schemas import (
-    QueryRequest,
-    QueryResponse,
-    FAQAddRequest,
-    FAQAddResponse,
-    FAQItem,
-    MetricsResponse,
-    HealthResponse
-)
-from src.core.rag_pipeline import get_rag_pipeline
-from src.core.vectordb import get_vector_db
+from src.core.dual_rag_pipeline import get_dual_rag_pipeline
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Lifespan context manager for startup/shutdown
+
+# Request/Response Models
+class IngestRequest(BaseModel):
+    """Request to trigger vector store ingestion"""
+    rebuild: bool = Field(
+        default=False,
+        description="If True, rebuild stores from scratch. If False, load existing."
+    )
+
+
+class IngestResponse(BaseModel):
+    """Response from ingestion endpoint"""
+    status: str
+    faq_count: int
+    ticket_count: int
+    message: str
+
+
+class QueryRequest(BaseModel):
+    """Request for querying the RAG system"""
+    question: str = Field(..., description="User's question")
+    top_k: int = Field(default=3, ge=1, le=10, description="Number of results to retrieve")
+
+
+class Citation(BaseModel):
+    """Citation/source information"""
+    rank: int
+    content: str
+    similarity: float
+    source: str
+    category: str
+    resolution_status: str | None = None
+
+
+class QueryResponse(BaseModel):
+    """Response from query endpoint"""
+    answer: str
+    source: str
+    confidence: float
+    citations: List[Citation]
+    latency_ms: float
+    query: str
+    timestamp: str
+
+
+# Lifespan context manager
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Manage application lifespan events."""
-    # Startup
-    logger.info("Starting SupportRAG API...")
+    """Startup and shutdown events"""
+    logger.info("Starting Enhanced SupportRAG API with Dual Vector Stores...")
     
-    # Validate API keys
-    if not settings.validate_api_keys():
-        logger.warning("API keys not configured properly. Some features may not work.")
+    # Initialize pipeline
+    pipeline = get_dual_rag_pipeline()
     
-    # Initialize RAG pipeline (loads vector DB)
+    # Try to load existing stores
     try:
-        _ = get_rag_pipeline()
-        logger.info("RAG pipeline initialized successfully")
+        pipeline.load_vector_stores()
+        logger.info("Loaded existing vector stores")
     except Exception as e:
-        logger.error(f"Failed to initialize RAG pipeline: {e}")
+        logger.warning(f"Could not load existing stores: {e}")
+        logger.info("Run POST /ingest to build vector stores")
+    
+    logger.info("API ready to serve requests")
     
     yield
     
     # Shutdown
-    logger.info("Shutting down SupportRAG API...")
-    
-    # Save vector database
-    try:
-        vector_db = get_vector_db()
-        vector_db.save()
-        logger.info("Vector database saved")
-    except Exception as e:
-        logger.error(f"Failed to save vector database: {e}")
+    logger.info("Shutting down Enhanced SupportRAG API...")
 
 
 # Create FastAPI app
 app = FastAPI(
-    title="SupportRAG API",
-    description="Retrieval-Augmented Generation API for Customer Support FAQs",
-    version="1.0.0",
+    title="SupportRAG Enhanced API",
+    description="Dual vector store RAG system with FAQ and Ticket fallback",
+    version="2.0.0",
     lifespan=lifespan
 )
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# Health check endpoint
-@app.get("/health", response_model=HealthResponse, tags=["System"])
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return {
+        "message": "SupportRAG Enhanced API with Dual Vector Stores",
+        "version": "2.0.0",
+        "endpoints": {
+            "health": "/health",
+            "ingest": "/ingest (POST)",
+            "query": "/query (POST)",
+            "docs": "/docs"
+        }
+    }
+
+
+@app.get("/health")
 async def health_check():
-    """Check system health and component status."""
-    checks = {}
+    """Health check endpoint"""
+    pipeline = get_dual_rag_pipeline()
     
-    # Check vector DB
-    try:
-        vector_db = get_vector_db()
-        checks['vector_db'] = vector_db.get_total_faqs() > 0
-    except Exception:
-        checks['vector_db'] = False
-    
-    # Check LLM
-    try:
-        from src.core.llm import get_llm_service
-        _ = get_llm_service()
-        checks['llm'] = True
-    except Exception:
-        checks['llm'] = False
-    
-    return HealthResponse(
-        status="healthy" if all(checks.values()) else "degraded",
-        version="1.0.0",
-        checks=checks
-    )
+    return {
+        "status": "healthy",
+        "faq_store_loaded": pipeline.faq_store is not None,
+        "ticket_store_loaded": pipeline.ticket_store is not None,
+        "faq_threshold": pipeline.faq_threshold
+    }
 
 
-# Query endpoint
-@app.post(
-    f"{settings.api_prefix}/query",
-    response_model=QueryResponse,
-    tags=["RAG"],
-    summary="Query the RAG system"
-)
+@app.post("/ingest", response_model=IngestResponse)
+async def ingest_data(request: IngestRequest):
+    """
+    Ingest data and build vector stores
+    
+    - Loads support_faqs.csv
+    - Loads HuggingFace dataset MakTek/Customer_support_faqs_dataset
+    - Loads support_tickets.csv
+    - Builds FAQ and Ticket FAISS vector stores
+    - Saves stores to disk
+    """
+    try:
+        pipeline = get_dual_rag_pipeline()
+        
+        if request.rebuild:
+            logger.info("Rebuilding vector stores from scratch...")
+            pipeline.build_vector_stores()
+            pipeline.save_vector_stores()
+        else:
+            logger.info("Loading existing vector stores...")
+            try:
+                pipeline.load_vector_stores()
+            except Exception as e:
+                logger.warning(f"Could not load existing stores: {e}. Building new ones...")
+                pipeline.build_vector_stores()
+                pipeline.save_vector_stores()
+        
+        # Count documents (approximate)
+        faq_count = len(pipeline.load_support_faqs()) + len(pipeline.load_huggingface_faqs())
+        ticket_count = len(pipeline.load_support_tickets())
+        
+        return IngestResponse(
+            status="success",
+            faq_count=faq_count,
+            ticket_count=ticket_count,
+            message=f"Vector stores built successfully. FAQ: {faq_count}, Tickets: {ticket_count}"
+        )
+    
+    except Exception as e:
+        logger.error(f"Error during ingestion: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/query", response_model=QueryResponse)
 async def query_rag(request: QueryRequest):
     """
-    Process a user query and return an AI-generated answer with citations.
+    Query the RAG system with dual vector store fallback (ASYNC)
     
-    - **question**: The user's question
-    - **top_k**: Number of similar FAQs to retrieve (default: 3)
-    - **user_id**: Optional user identifier for tracking
+    Logic:
+    1. Search FAQ and Ticket stores in parallel
+    2. Use FAQ if similarity >= 0.65, else fallback to Ticket
+    3. Generate answer with async LLM call
+    4. Return answer + metadata (source, citations, status)
+    
+    Performance optimizations:
+    - Parallel vector store searches
+    - Async LLM generation
+    - Non-blocking I/O operations
     """
     try:
-        rag_pipeline = get_rag_pipeline()
-        response = rag_pipeline.query(request)
-        return response
+        pipeline = get_dual_rag_pipeline()
+        
+        if not pipeline.faq_store and not pipeline.ticket_store:
+            raise HTTPException(
+                status_code=503,
+                detail="Vector stores not initialized. Run POST /ingest first."
+            )
+        
+        # Execute async query with parallel retrieval
+        result = await pipeline.aquery(
+            question=request.question,
+            top_k=request.top_k
+        )
+        
+        # Convert to response model
+        citations = [
+            Citation(**citation) for citation in result["citations"]
+        ]
+        
+        return QueryResponse(
+            answer=result["answer"],
+            source=result["source"],
+            confidence=result["confidence"],
+            citations=citations,
+            latency_ms=result["latency_ms"],
+            query=result["query"],
+            timestamp=result["timestamp"]
+        )
+    
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error processing query: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to process query: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-# Add FAQ endpoint
-@app.post(
-    f"{settings.api_prefix}/faq",
-    response_model=FAQAddResponse,
-    tags=["FAQ Management"],
-    summary="Add a new FAQ"
-)
-async def add_faq(request: FAQAddRequest):
-    """
-    Add a new FAQ to the knowledge base.
+@app.get("/stats")
+async def get_stats():
+    """Get system statistics"""
+    import json
+    from pathlib import Path
     
-    - **question**: The FAQ question
-    - **answer**: The FAQ answer
-    - **category**: Optional category (default: "general")
-    - **tags**: Optional list of tags
-    """
-    try:
-        faq = FAQItem(
-            question=request.question,
-            answer=request.answer,
-            category=request.category,
-            tags=request.tags
-        )
-        
-        rag_pipeline = get_rag_pipeline()
-        faq_id = rag_pipeline.add_faq(faq)
-        
-        # Save vector database
-        vector_db = get_vector_db()
-        vector_db.save()
-        
-        return FAQAddResponse(
-            success=True,
-            faq_id=faq_id,
-            message="FAQ added successfully"
-        )
-    except Exception as e:
-        logger.error(f"Error adding FAQ: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to add FAQ: {str(e)}"
-        )
-
-
-# Get metrics endpoint
-@app.get(
-    f"{settings.api_prefix}/metrics",
-    response_model=MetricsResponse,
-    tags=["System"],
-    summary="Get system metrics"
-)
-async def get_metrics():
-    """
-    Get current system metrics including query statistics and performance.
+    log_file = Path("logs/query_logs.jsonl")
     
-    Returns metrics such as:
-    - Total queries processed
-    - Escalation rate
-    - Average latency
-    - Average confidence score
-    - System uptime
-    """
-    try:
-        rag_pipeline = get_rag_pipeline()
-        metrics = rag_pipeline.get_metrics()
-        
-        vector_db = get_vector_db()
-        total_faqs = vector_db.get_total_faqs()
-        
-        return MetricsResponse(
-            total_queries=metrics['total_queries'],
-            escalation_rate=metrics['escalation_rate'],
-            average_latency_ms=metrics['average_latency_ms'],
-            average_confidence=metrics['average_confidence'],
-            total_faqs=total_faqs,
-            uptime_seconds=metrics['uptime_seconds']
-        )
-    except Exception as e:
-        logger.error(f"Error getting metrics: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get metrics: {str(e)}"
-        )
-
-
-# Root endpoint
-@app.get("/", tags=["System"])
-async def root():
-    """Root endpoint with API information."""
+    if not log_file.exists():
+        return {
+            "total_queries": 0,
+            "avg_latency_ms": 0,
+            "avg_confidence": 0,
+            "source_breakdown": {}
+        }
+    
+    # Read logs
+    queries = []
+    with open(log_file, "r", encoding="utf-8") as f:
+        for line in f:
+            queries.append(json.loads(line))
+    
+    if not queries:
+        return {
+            "total_queries": 0,
+            "avg_latency_ms": 0,
+            "avg_confidence": 0,
+            "source_breakdown": {}
+        }
+    
+    # Calculate stats
+    total = len(queries)
+    avg_latency = sum(q["latency_ms"] for q in queries) / total
+    avg_confidence = sum(q["confidence"] for q in queries) / total
+    
+    # Source breakdown
+    sources = {}
+    for q in queries:
+        source = q["source"]
+        sources[source] = sources.get(source, 0) + 1
+    
     return {
-        "name": "SupportRAG API",
-        "version": "1.0.0",
-        "description": "Retrieval-Augmented Generation API for Customer Support",
-        "docs_url": "/docs",
-        "health_url": "/health"
+        "total_queries": total,
+        "avg_latency_ms": round(avg_latency, 2),
+        "avg_confidence": round(avg_confidence, 4),
+        "source_breakdown": sources
     }
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "src.api.main:app",
-        host=settings.api_host,
-        port=settings.api_port,
-        reload=True
-    )
+    uvicorn.run(app, host="0.0.0.0", port=8000)
