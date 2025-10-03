@@ -1,12 +1,15 @@
 """
 Enhanced RAG Pipeline with Dual Vector Stores (FAQ + Tickets)
 Using LangChain + FAISS with fallback retrieval logic
+Optimized with async support and FAISS IVF indexing
 """
 import os
 import json
+import asyncio
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 
 import pandas as pd
 import faiss
@@ -23,6 +26,9 @@ from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+# Thread pool for async operations
+_executor = ThreadPoolExecutor(max_workers=4)
+
 
 # Custom Embeddings Wrapper for LangChain
 class SentenceTransformerEmbeddings(Embeddings):
@@ -33,14 +39,30 @@ class SentenceTransformerEmbeddings(Embeddings):
         logger.info(f"Loaded embedding model: {model_name}")
     
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        """Embed a list of documents"""
-        embeddings = self.model.encode(texts, convert_to_numpy=True)
+        """Embed a list of documents (batch processing for efficiency)"""
+        # Batch encode for better performance
+        embeddings = self.model.encode(
+            texts, 
+            convert_to_numpy=True,
+            batch_size=32,  # Process 32 at a time
+            show_progress_bar=len(texts) > 100
+        )
         return embeddings.tolist()
     
     def embed_query(self, text: str) -> List[float]:
         """Embed a single query"""
         embedding = self.model.encode([text], convert_to_numpy=True)[0]
         return embedding.tolist()
+    
+    async def aembed_query(self, text: str) -> List[float]:
+        """Async embed a single query"""
+        loop = asyncio.get_event_loop()
+        embedding = await loop.run_in_executor(
+            _executor,
+            self.model.encode,
+            [text]
+        )
+        return embedding[0].tolist()
 
 
 # Simpler non-Pydantic Gemini wrapper
@@ -62,7 +84,7 @@ class GeminiLLM:
         logger.info(f"Initialized Gemini LLM: {self.model_name}")
     
     def _call(self, prompt: str) -> str:
-        """Call Gemini API"""
+        """Call Gemini API (sync)"""
         try:
             generation_config = {
                 'temperature': self.temperature,
@@ -76,6 +98,15 @@ class GeminiLLM:
         except Exception as e:
             logger.error(f"Error calling Gemini: {e}")
             raise
+    
+    async def acall(self, prompt: str) -> str:
+        """Call Gemini API (async)"""
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            _executor,
+            self._call,
+            prompt
+        )
 
 
 class DualStoreRAGPipeline:
@@ -127,7 +158,7 @@ class DualStoreRAGPipeline:
         logger.info(f"Loaded {len(documents)} FAQs from CSV")
         return documents
     
-    def load_huggingface_faqs(self, max_records: int = 5000) -> List[Document]:
+    def load_huggingface_faqs(self, max_records: int = 10000) -> List[Document]:
         """Load FAQ documents from HuggingFace dataset"""
         try:
             # Try multiple datasets in order of preference
@@ -220,8 +251,13 @@ class DualStoreRAGPipeline:
         logger.info(f"Loaded {len(documents)} support tickets from CSV")
         return documents
     
-    def build_vector_stores(self):
-        """Build both FAQ and Ticket vector stores"""
+    def build_vector_stores(self, use_ivf: bool = True):
+        """
+        Build both FAQ and Ticket vector stores with optional IVF optimization
+        
+        Args:
+            use_ivf: Use FAISS IVF (Inverted File) index for faster search (recommended for 5k+ docs)
+        """
         logger.info("Building vector stores...")
         
         # Build FAQ Store
@@ -234,6 +270,11 @@ class DualStoreRAGPipeline:
                 all_faq_docs,
                 self.embeddings
             )
+            
+            # Optimize FAISS index with IVF if we have enough documents
+            if use_ivf and len(all_faq_docs) >= 1000:
+                self._optimize_faiss_index(self.faq_store, len(all_faq_docs), "FAQ")
+            
             logger.info(f"FAQ store built with {len(all_faq_docs)} documents")
         else:
             logger.warning("No FAQ documents loaded")
@@ -246,11 +287,61 @@ class DualStoreRAGPipeline:
                 ticket_docs,
                 self.embeddings
             )
+            
+            # Optimize FAISS index with IVF if we have enough documents
+            if use_ivf and len(ticket_docs) >= 1000:
+                self._optimize_faiss_index(self.ticket_store, len(ticket_docs), "Ticket")
+            
             logger.info(f"Ticket store built with {len(ticket_docs)} documents")
         else:
             logger.warning("No ticket documents loaded")
         
         logger.info("Vector stores built successfully")
+    
+    def _optimize_faiss_index(self, vector_store: LangChainFAISS, num_docs: int, store_name: str):
+        """
+        Optimize FAISS index using IVF (Inverted File Index) for faster search
+        
+        IVF benefits:
+        - 3-10x faster search on large datasets (5k+ docs)
+        - Slight accuracy tradeoff (99% vs 100%)
+        - Memory efficient
+        """
+        try:
+            logger.info(f"Optimizing {store_name} store with IVF indexing...")
+            
+            # Get the current index and vectors
+            old_index = vector_store.index
+            dimension = old_index.d
+            
+            # Calculate optimal number of clusters (nlist)
+            # Rule of thumb: sqrt(num_docs) to 4*sqrt(num_docs)
+            nlist = min(int(np.sqrt(num_docs) * 2), 256)  # Cap at 256 clusters
+            
+            # Create IVF Flat index (accurate but faster than brute force)
+            quantizer = faiss.IndexFlatL2(dimension)
+            new_index = faiss.IndexIVFFlat(quantizer, dimension, nlist, faiss.METRIC_L2)
+            
+            # Train the index with existing vectors
+            vectors = old_index.reconstruct_n(0, num_docs)
+            new_index.train(vectors)
+            new_index.add(vectors)
+            
+            # Set search parameters (nprobe = how many clusters to search)
+            # Higher nprobe = more accurate but slower
+            new_index.nprobe = max(nlist // 4, 8)  # Search 25% of clusters
+            
+            # Replace the index
+            vector_store.index = new_index
+            
+            logger.info(
+                f"{store_name} index optimized: {num_docs} docs, "
+                f"{nlist} clusters, nprobe={new_index.nprobe}"
+            )
+            
+        except Exception as e:
+            logger.warning(f"Failed to optimize {store_name} index with IVF: {e}")
+            logger.info(f"Continuing with standard Flat index for {store_name}")
     
     def save_vector_stores(self):
         """Save vector stores to disk"""
@@ -434,6 +525,138 @@ Answer:"""
         self._log_query(response)
         
         logger.info(f"Query completed in {latency_ms:.2f}ms from {source_type} store")
+        
+        return response
+    
+    async def aquery(
+        self,
+        question: str,
+        top_k: int = 3
+    ) -> Dict[str, Any]:
+        """
+        Async version of query with parallel retrieval and fallback logic
+        
+        Performance improvements:
+        - Parallel FAQ and Ticket store searches
+        - Async LLM call
+        - Non-blocking I/O operations
+        """
+        start_time = datetime.now()
+        
+        # Step 1: Search both stores in parallel
+        loop = asyncio.get_event_loop()
+        
+        faq_task = loop.run_in_executor(
+            _executor,
+            self.retrieve_with_scores,
+            question,
+            "faq",
+            top_k
+        )
+        
+        ticket_task = loop.run_in_executor(
+            _executor,
+            self.retrieve_with_scores,
+            question,
+            "ticket",
+            top_k
+        )
+        
+        # Wait for both searches to complete
+        (faq_docs, faq_similarities), (ticket_docs, ticket_similarities) = await asyncio.gather(
+            faq_task,
+            ticket_task
+        )
+        
+        # Determine source based on similarity threshold
+        if faq_similarities and faq_similarities[0] >= self.faq_threshold:
+            # Use FAQ
+            chosen_docs = faq_docs
+            chosen_similarities = faq_similarities
+            source_type = "FAQ"
+            logger.info(f"Using FAQ store (similarity: {faq_similarities[0]:.3f})")
+        else:
+            # Fallback to Ticket store
+            chosen_docs = ticket_docs
+            chosen_similarities = ticket_similarities
+            source_type = "Ticket"
+            logger.info(f"Fallback to Ticket store (FAQ similarity: {faq_similarities[0] if faq_similarities else 0:.3f})")
+        
+        if not chosen_docs:
+            return {
+                "answer": "I apologize, but I couldn't find relevant information to answer your question. Please contact our support team for assistance.",
+                "source": "None",
+                "confidence": 0.0,
+                "citations": [],
+                "latency_ms": (datetime.now() - start_time).total_seconds() * 1000
+            }
+        
+        # Build context from retrieved documents
+        context_parts = []
+        citations = []
+        
+        for i, (doc, similarity) in enumerate(zip(chosen_docs, chosen_similarities)):
+            context_parts.append(doc.page_content)
+            
+            citation = {
+                "rank": i + 1,
+                "content": doc.page_content[:200] + "...",
+                "similarity": similarity,
+                "source": doc.metadata.get("source", "Unknown"),
+                "category": doc.metadata.get("category", "General")
+            }
+            
+            # Add ticket-specific metadata
+            if source_type == "Ticket":
+                citation["resolution_status"] = doc.metadata.get("resolution_status", "unknown")
+            
+            citations.append(citation)
+        
+        context = "\n\n".join(context_parts)
+        
+        # Create prompt template
+        prompt_template = """You are a helpful customer support assistant. Use the following context to answer the user's question.
+
+Context:
+{context}
+
+User Question: {question}
+
+Instructions:
+- Provide a clear, helpful answer based on the context
+- If the context comes from a support ticket, acknowledge similar past issues
+- Be concise but complete
+- If you're not sure, say so
+
+Answer:"""
+        
+        # Generate answer (async)
+        prompt = prompt_template.format(context=context, question=question)
+        
+        try:
+            answer = await self.llm.acall(prompt)
+        except Exception as e:
+            logger.error(f"Error generating answer: {e}")
+            answer = f"Based on the available information: {context[:300]}..."
+        
+        # Calculate latency
+        latency_ms = (datetime.now() - start_time).total_seconds() * 1000
+        
+        # Build response
+        response = {
+            "answer": answer,
+            "source": source_type,
+            "confidence": chosen_similarities[0] if chosen_similarities else 0.0,
+            "citations": citations,
+            "latency_ms": latency_ms,
+            "query": question,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # Log query
+        self._log_query(response)
+        
+        logger.info(f"Async query completed in {latency_ms:.2f}ms from {source_type} store")
         
         return response
     
