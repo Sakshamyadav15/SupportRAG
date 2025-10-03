@@ -4,19 +4,21 @@ uvicorn[standard]==0.24.0
 pydantic==2.5.0
 pydantic-settings==2.1.0
 
-# RAG & LLM
-langchain==0.1.0
-langchain-community==0.0.10
-langchain-google-genai==0.0.5
-google-generativeai==0.3.2
-openai==1.6.1
+# LangChain & RAG
+langchain==0.1.16
+langchain-community==0.0.29
+langchain-core==0.1.33
+google-generativeai  # Latest for Gemini 2.0
 
 # Embeddings & Vector DB
-torch==2.0.1
-sentence-transformers==2.2.2
-huggingface-hub==0.16.4
-faiss-cpu==1.7.4
+sentence-transformers==2.7.0  # Updated version
+faiss-cpu==1.8.0
 numpy==1.24.3
+torch  # Let it resolve automatically
+
+# HuggingFace Datasets
+datasets==2.18.0
+huggingface-hub  # Latest version
 
 # Frontend
 streamlit==1.29.0
