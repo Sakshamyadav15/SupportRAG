@@ -1,0 +1,21 @@
+id,question,answer,category
+faq_00001,How do I reset my password?,Go to the login page and click on 'Forgot Password'. Enter your email address and we'll send you a reset link. Follow the instructions in the email to create a new password.,account
+faq_00002,What are your business hours?,Our support team is available Monday through Friday from 9 AM to 6 PM EST. For urgent issues outside these hours please use our emergency hotline.,general
+faq_00003,How can I track my order?,Log into your account and go to 'My Orders'. Click on the order you want to track to see real-time shipping updates and estimated delivery date.,orders
+faq_00004,What is your return policy?,We offer a 30-day return policy for most items. Products must be unused and in original packaging. Contact support to initiate a return and receive a prepaid shipping label.,returns
+faq_00005,How do I update my billing information?,Sign into your account go to Settings then Billing Information. You can update your credit card address and other payment details there.,account
+faq_00006,Do you offer international shipping?,Yes we ship to over 100 countries worldwide. Shipping costs and delivery times vary by location. Check our shipping calculator at checkout for specific rates.,shipping
+faq_00007,How do I cancel my subscription?,Go to Account Settings Subscription and click 'Cancel Subscription'. You'll continue to have access until the end of your current billing period.,subscription
+faq_00008,What payment methods do you accept?,We accept all major credit cards (Visa MasterCard American Express Discover) PayPal Apple Pay and Google Pay.,payment
+faq_00009,How do I contact customer support?,You can reach us via email at support@company.com through our live chat on the website or by calling 1-800-SUPPORT during business hours.,general
+faq_00010,Is my personal information secure?,Yes we use industry-standard SSL encryption to protect your data. We never share your personal information with third parties without your consent.,security
+faq_00011,How long does shipping take?,Standard shipping takes 5-7 business days. Express shipping (2-3 days) and overnight options are available at checkout for an additional fee.,shipping
+faq_00012,Can I change my order after placing it?,If your order hasn't shipped yet you can modify it by contacting customer support immediately. Once shipped changes cannot be made.,orders
+faq_00013,Do you offer gift cards?,Yes gift cards are available in denominations from $25 to $500. They can be purchased on our website and are delivered via email.,general
+faq_00014,What if my item arrives damaged?,We apologize for any damage. Please contact us within 48 hours of delivery with photos of the damage. We'll arrange a replacement or full refund.,returns
+faq_00015,How do I apply a promo code?,Enter your promo code in the 'Discount Code' field at checkout and click 'Apply'. The discount will be reflected in your order total.,general
+faq_00016,Can I save items for later?,Yes click the heart icon on any product to add it to your Wishlist. You can access your Wishlist anytime from your account menu.,account
+faq_00017,What is your price match policy?,We match prices from authorized retailers for identical items within 14 days of purchase. Contact support with proof of the lower price.,general
+faq_00018,How do I unsubscribe from emails?,Click the 'Unsubscribe' link at the bottom of any marketing email or manage your email preferences in Account Settings.,account
+faq_00019,Do you have a mobile app?,Yes our mobile app is available for iOS and Android. Download it from the App Store or Google Play for exclusive mobile-only deals.,general
+faq_00020,What if an item is out of stock?,Out of stock items show an 'Email me when available' button. Sign up to receive a notification when the item is back in stock.,orders

@@ -1,0 +1,16 @@
+question,expected_category,ground_truth_faq_id
+I forgot my password and need to reset it,account,faq_00001
+When is your customer service available?,general,faq_00002
+Where is my package?,orders,faq_00003
+Can I return this product?,returns,faq_00004
+I need to update my credit card,account,faq_00005
+Do you deliver to other countries?,shipping,faq_00006
+How do I stop my monthly subscription?,subscription,faq_00007
+What forms of payment are accepted?,payment,faq_00008
+I need help with my order,general,faq_00009
+Is my data safe with you?,security,faq_00010
+How fast will my order arrive?,shipping,faq_00011
+Can I modify my order?,orders,faq_00012
+Where can I buy a gift card?,general,faq_00013
+My package came broken,returns,faq_00014
+How do I use a discount code?,general,faq_00015
