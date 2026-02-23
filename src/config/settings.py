@@ -16,11 +16,12 @@ class Settings(BaseSettings):
     # API Keys
     gemini_api_key: Optional[str] = None
     openai_api_key: Optional[str] = None
+    groq_api_key: Optional[str] = None
     
     # Model Configuration
     embedding_model: str = "all-MiniLM-L6-v2"
-    llm_provider: str = "gemini"  # gemini or openai
-    llm_model: str = "gemini-pro"
+    llm_provider: str = "groq"  # groq, gemini, or openai
+    llm_model: str = "llama-3.3-70b-versatile"
     llm_temperature: float = 0.7
     max_tokens: int = 512
     

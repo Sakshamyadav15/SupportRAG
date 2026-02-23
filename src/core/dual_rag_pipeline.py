@@ -19,7 +19,7 @@ from sentence_transformers import SentenceTransformer
 from langchain.embeddings.base import Embeddings
 from langchain_community.vectorstores import FAISS as LangChainFAISS
 from langchain.docstore.document import Document
-import google.generativeai as genai
+from groq import Groq
 
 from src.config import settings
 from src.utils.logger import get_logger
@@ -66,41 +66,38 @@ class SentenceTransformerEmbeddings(Embeddings):
 
 
 # Simpler non-Pydantic Gemini wrapper
-class GeminiLLM:
-    """Simple Gemini LLM wrapper (non-LangChain LLM for compatibility)"""
+class GroqLLM:
+    """Groq LLM wrapper for fast inference"""
     
     def __init__(
         self,
-        model_name: str = "gemini-2.0-flash-exp",
+        model_name: str = None,
         temperature: float = 0.7,
         max_tokens: int = 512
     ):
-        self.model_name = model_name
+        self.model_name = model_name or settings.llm_model or "llama-3.3-70b-versatile"
         self.temperature = temperature
         self.max_tokens = max_tokens
         
-        genai.configure(api_key=settings.gemini_api_key)
-        self.model = genai.GenerativeModel(self.model_name)
-        logger.info(f"Initialized Gemini LLM: {self.model_name}")
+        self.client = Groq(api_key=settings.groq_api_key)
+        logger.info(f"Initialized Groq LLM: {self.model_name}")
     
     def _call(self, prompt: str) -> str:
-        """Call Gemini API (sync)"""
+        """Call Groq API (sync)"""
         try:
-            generation_config = {
-                'temperature': self.temperature,
-                'max_output_tokens': self.max_tokens,
-            }
-            response = self.model.generate_content(
-                prompt,
-                generation_config=generation_config
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
             )
-            return response.text
+            return response.choices[0].message.content
         except Exception as e:
-            logger.error(f"Error calling Gemini: {e}")
+            logger.error(f"Error calling Groq: {e}")
             raise
     
     async def acall(self, prompt: str) -> str:
-        """Call Gemini API (async)"""
+        """Call Groq API (async via executor)"""
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
             _executor,
@@ -120,7 +117,7 @@ class DualStoreRAGPipeline:
     
     def __init__(self):
         self.embeddings = SentenceTransformerEmbeddings()
-        self.llm = GeminiLLM()
+        self.llm = GroqLLM()
         
         self.faq_store: Optional[LangChainFAISS] = None
         self.ticket_store: Optional[LangChainFAISS] = None
@@ -251,12 +248,14 @@ class DualStoreRAGPipeline:
         logger.info(f"Loaded {len(documents)} support tickets from CSV")
         return documents
     
-    def build_vector_stores(self, use_ivf: bool = True):
+    def build_vector_stores(self, use_ivf: bool = False):
         """
         Build both FAQ and Ticket vector stores with optional IVF optimization
         
         Args:
-            use_ivf: Use FAISS IVF (Inverted File) index for faster search (recommended for 5k+ docs)
+            use_ivf: Use FAISS IVF (Inverted File) index for faster search.
+                     Defaults to False because IVF indexes can cause segfaults
+                     with certain faiss-cpu versions on Windows.
         """
         logger.info("Building vector stores...")
         
