@@ -2,10 +2,14 @@
 Enhanced FastAPI application with dual vector store support
 Endpoints for ingestion and querying with fallback logic
 """
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 from typing import List, Dict, Any
+from pathlib import Path
+import os
 from pydantic import BaseModel, Field
 
 from src.core.dual_rag_pipeline import get_dual_rag_pipeline
@@ -101,19 +105,7 @@ app.add_middleware(
 )
 
 
-@app.get("/")
-async def root():
-    """Root endpoint"""
-    return {
-        "message": "SupportRAG Enhanced API with Dual Vector Stores",
-        "version": "2.0.0",
-        "endpoints": {
-            "health": "/health",
-            "ingest": "/ingest (POST)",
-            "query": "/query (POST)",
-            "docs": "/docs"
-        }
-    }
+# Root endpoint removed in favor of static file serving logic at end of file
 
 
 @app.get("/health")
@@ -273,6 +265,36 @@ async def get_stats():
         "source_breakdown": sources
     }
 
+
+# --- Frontend Static Files Serving ---
+BASE_DIR = Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / "static"
+
+if STATIC_DIR.exists():
+    # Mount assets folder for static resources (CSS, JS, Images)
+    app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        # Allow API routes to pass through (though FastAPI routing handles this naturally if defined above)
+        if full_path.startswith("api"):
+             raise HTTPException(status_code=404, detail="API route not found")
+
+        # Serve specific file if it exists
+        file_path = STATIC_DIR / full_path
+        if file_path.is_file():
+            return FileResponse(file_path)
+            
+        # Default to index.html for SPA routing (e.g. /dashboard, /chat)
+        return FileResponse(STATIC_DIR / "index.html")
+else:
+    @app.get("/")
+    async def root():
+        return {
+            "message": "SupportRAG Enhanced API",
+            "status": "running",
+            "frontend": "not_served (static directory missing)"
+        }
 
 if __name__ == "__main__":
     import uvicorn
