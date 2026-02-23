@@ -56,4 +56,5 @@ jobs:
         with:
           app-name: 'supportrag-backend-saksham'
           slot-name: 'Production'
+          package: release.zip
           
