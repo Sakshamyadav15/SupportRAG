@@ -11,7 +11,6 @@ langchain-core==0.1.33
 groq  # Groq API for fast LLM inference
 
 # Embeddings & Vector DB
-options
 sentence-transformers>=2.7.0  # Allow newer
 faiss-cpu>=1.7.4 # Relaxed
 numpy>=1.23.0 # Relaxed for compatibility
