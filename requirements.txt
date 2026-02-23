@@ -5,9 +5,9 @@ pydantic==2.5.0
 pydantic-settings==2.1.0
 
 # LangChain & RAG
-langchain==0.1.16
+langchain>=0.1.16
 langchain-community>=0.0.32
-langchain-core==0.1.33
+langchain-core>=0.1.42
 groq  # Groq API for fast LLM inference
 
 # Embeddings & Vector DB
