@@ -521,77 +521,6 @@ export default function AgenticPage() {
         </div>
       </section>
 
-      {/* ── PRICING ───────────────────────────────────────────────────────── */}
-      <section id="pricing" className="py-32 px-6 md:px-12 lg:px-20 border-t border-black/[0.06]">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16 flex flex-col items-center">
-            <PixelIcon type="pricing" size={40} />
-            <div className="mt-4"><Tag>PRICING</Tag></div>
-            <RevealText className="mt-5 text-4xl md:text-5xl font-light tracking-tight leading-[1.05]">
-              {"Scale as your queries grow."}
-            </RevealText>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3" onMouseMove={handleMouse}>
-            {[
-              {
-                name: "Starter",
-                price: "Free",
-                sub: "Start experimenting",
-                features: ["5K queries/mo", "Basic FAQ store", "Community support", "API access"],
-                delay: 0,
-              },
-              {
-                name: "Pro",
-                price: "$79",
-                period: "/mo",
-                sub: "For growing teams",
-                features: ["100K queries/mo", "Dual vector stores", "Priority support", "Full metrics", "Custom embeddings", "Webhook integrations"],
-                highlight: true,
-                delay: 80,
-              },
-              {
-                name: "Enterprise",
-                price: "Custom",
-                sub: "For large organizations",
-                features: ["Unlimited queries", "Dedicated infra", "Custom LLM models", "SLA guarantees", "On-premise option", "24/7 support"],
-                delay: 140,
-              },
-            ].map((plan) => (
-              <BentoCard
-                key={plan.name}
-                className={`p-8 flex flex-col ${plan.highlight ? "border-black/20 bg-[#F0EEE8]" : ""}`}
-                delay={plan.delay}
-              >
-                <div className="mb-8">
-                  <div className="font-pixel text-[11px] tracking-widest text-black/40 mb-4">{plan.name}</div>
-                  <div className="flex items-baseline gap-1 mb-1">
-                    <span className="text-4xl font-light">{plan.price}</span>
-                    {plan.period && <span className="text-black/40 text-sm">{plan.period}</span>}
-                  </div>
-                  <p className="text-xs text-black/35 tracking-wide">{plan.sub}</p>
-                </div>
-                <ul className="space-y-3 flex-1 mb-8">
-                  {plan.features.map(f => (
-                    <li key={f} className="flex items-center gap-3 text-sm text-black/55">
-                      <div className="w-1 h-1 rounded-full bg-black/25 shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <button className={`w-full py-3 rounded-xl text-sm tracking-widest transition-all duration-200 ${
-                  plan.highlight
-                    ? "bg-[#111] text-white hover:bg-[#333]"
-                    : "border border-black/10 text-black/60 hover:border-black/25 hover:text-black hover:bg-black/[0.04]"
-                }`}>
-                  {plan.name === "Enterprise" ? "CONTACT SALES" : "GET STARTED"}
-                </button>
-              </BentoCard>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ── CTA ───────────────────────────────────────────────────────────── */}
       <section className="relative py-32 px-6 md:px-12 lg:px-20 border-t border-black/[0.06] overflow-hidden">
         {/* Glass panels image — anchored to bottom center */}
@@ -649,7 +578,6 @@ export default function AgenticPage() {
               { label: "Workflow",     href: "#workflow" },
               { label: "Tech Stack",   href: "#integrations" },
               { label: "Live",         href: "#live" },
-              { label: "Pricing",      href: "#pricing" },
             ].map(l => (
               <a key={l.label} href={l.href} className="text-xs text-black/35 hover:text-black/70 transition-colors tracking-widest">{l.label}</a>
             ))}
