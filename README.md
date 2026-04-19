@@ -1,3 +1,11 @@
+---
+title: SupportRAG
+emoji: 🦀
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+---
 # 🤖 SupportRAG - Dual Vector Store RAG Platform
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
