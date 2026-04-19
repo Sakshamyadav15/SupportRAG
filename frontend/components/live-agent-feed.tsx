@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react"
 
 const AGENT_NAMES = [
-  "faq-store", "ticket-store", "embedder", "gemini-llm",
+  "faq-store", "ticket-store", "embedder", "groq-llm",
   "retriever", "ranker", "generator", "validator",
   "fallback", "metrics",
 ]
@@ -90,7 +90,7 @@ function ProgressBar({ initial }: { initial: number }) {
 const SEED_ROWS: AgentRow[] = [
   { id: "A1B2C3", name: "faq-store",    task: "How do I reset my password?",       region: "faq",    status: STATUSES[0], progress: 42, elapsed: "312ms", key: 0 },
   { id: "D4E5F6", name: "ticket-store", task: "My order hasn't arrived yet",       region: "ticket", status: STATUSES[0], progress: 67, elapsed: "287ms", key: 1 },
-  { id: "G7H8I9", name: "gemini-llm",   task: "How do I get a refund?",           region: "faq",    status: STATUSES[3], progress: 18, elapsed: "156ms", key: 2 },
+  { id: "G7H8I9", name: "groq-llm",   task: "How do I get a refund?",           region: "faq",    status: STATUSES[3], progress: 18, elapsed: "156ms", key: 2 },
   { id: "J0K1L2", name: "retriever",    task: "Where is my order #54321?",        region: "ticket", status: STATUSES[0], progress: 55, elapsed: "342ms", key: 3 },
   { id: "M3N4O5", name: "embedder",     task: "Change my email address",          region: "faq",    status: STATUSES[0], progress: 80, elapsed: "198ms", key: 4 },
   { id: "P6Q7R8", name: "validator",    task: "Payment declined twice",           region: "ticket", status: STATUSES[4], progress: 99, elapsed: "401ms", key: 5 },

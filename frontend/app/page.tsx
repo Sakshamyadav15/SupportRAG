@@ -243,7 +243,7 @@ export default function AgenticPage() {
               <div className="w-10 h-10 rounded-xl border border-black/10 flex items-center justify-center mb-5">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
               </div>
-              <h3 className="text-lg font-light mb-2">Gemini 2.0 Flash</h3>
+              <h3 className="text-lg font-light mb-2">Groq Llama 3</h3>
               <p className="text-sm text-black/45 leading-relaxed">State-of-the-art LLM for natural responses with context-aware answer generation.</p>
             </BentoCard>
           </div>
@@ -285,7 +285,7 @@ export default function AgenticPage() {
             {[
               { n: "01", title: "Ingest",  desc: "Load FAQs and support tickets into dual FAISS vector stores with IVF clustering.", delay: 0,   img: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/define-5aafAmGBrxZpOqJ3XLHY3n3qzC2I5K.png" },
               { n: "02", title: "Search", desc: "Parallel async queries across both stores. Smart fallback at 65% confidence threshold.", delay: 80,  img: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/compose-5RT5VR4f1Y3GoFmovqTKLTG4UXp3g2.png" },
-              { n: "03", title: "Generate",    desc: "Gemini 2.0 Flash generates context-aware answers with citations and metadata.", delay: 140, img: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/test-zm8guZwxJHtwWsJ7XO4B0CF7GzlNK8.png" },
+              { n: "03", title: "Generate",    desc: "Groq Llama 3 generates context-aware answers with citations and metadata.", delay: 140, img: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/test-zm8guZwxJHtwWsJ7XO4B0CF7GzlNK8.png" },
               { n: "04", title: "Respond",  desc: "Return answer with source tracking, confidence scores, and latency metrics.", delay: 200, img: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/deploy-an8fgHSLzniojkcmRyGGIFQUJF9T5J.png" },
             ].map((step) => (
               <BentoCard key={step.n} className="relative overflow-hidden flex flex-col min-h-[320px]" delay={step.delay}>
@@ -328,7 +328,7 @@ export default function AgenticPage() {
               </RevealText>
             </div>
             <p className="text-sm text-black/45 leading-relaxed max-w-xs">
-              Built with FastAPI, FAISS, LangChain, and Gemini. Full REST + WebSocket API. Python 3.10+ compatible.
+              Built with FastAPI, FAISS, LangChain, and Groq. Full REST + WebSocket API. Python 3.10+ compatible.
             </p>
           </div>
 
@@ -421,7 +421,7 @@ export default function AgenticPage() {
 
               {/* Tech badges — vertical stack */}
               <div className="pt-4 flex flex-col gap-2">
-                {["FastAPI", "FAISS IVF", "LangChain", "Gemini 2.0"].map((badge) => (
+                {["FastAPI", "FAISS IVF", "LangChain", "Llama 3"].map((badge) => (
                   <div key={badge} className="flex items-center gap-2 text-xs text-black/25">
                     <span className="w-1 h-1 rounded-full bg-black/25" />
                     {badge}

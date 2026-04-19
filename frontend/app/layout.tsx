@@ -13,7 +13,7 @@ const _ibmPlexSans = IBM_Plex_Sans({ weight: ["300", "400", "500", "600"], subse
 export const metadata: Metadata = {
   title: 'SupportRAG — Dual Vector Store RAG for Customer Support',
   description: 'Production-ready RAG system with dual vector stores, async processing, and FAISS IVF optimization. 4.2x throughput improvement with 337ms average latency across 15.5k+ documents.',
-  keywords: ['RAG', 'customer support', 'vector store', 'FAISS', 'LangChain', 'Gemini', 'AI support'],
+  keywords: ['RAG', 'customer support', 'vector store', 'FAISS', 'LangChain', 'Groq', 'AI support'],
   authors: [{ name: 'Saksham Yadav' }],
   openGraph: {
     title: 'SupportRAG — Dual Vector Store RAG for Customer Support',

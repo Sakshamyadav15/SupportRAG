@@ -7,8 +7,7 @@ const NAV_LINKS = [
   { label: "Data Sources", href: "#agents" },
   { label: "Workflow",     href: "#workflow" },
   { label: "Tech Stack",   href: "#integrations" },
-  { label: "Pricing",      href: "#pricing" },
-]
+  ]
 
 const NAV_STYLE = {
   backdropFilter: "blur(16px)",

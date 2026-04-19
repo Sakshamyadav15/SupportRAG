@@ -26,7 +26,7 @@ const AGENTS = [
   },
   {
     label: "LLM ENGINE",
-    title: "Gemini 2.0 Flash",
+    title: "Groq Llama 3",
     desc: "State-of-the-art LLM for natural response generation. Context-aware answers with source tracking and confidence scoring.",
     stats: [{ v: "337ms", l: "latency" }, { v: "4.2x", l: "throughput" }],
     img: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/executor-o1q6509qMLXMtpBIGo49vcgOu34sI1.png",

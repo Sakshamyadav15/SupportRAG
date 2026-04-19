@@ -102,7 +102,7 @@ function SidebarStats() {
       <div>
         <div className="text-xs text-black/30 tracking-widest uppercase mb-3">Tech Stack</div>
         <div className="flex flex-wrap gap-2">
-          {["FastAPI", "FAISS", "LangChain", "Gemini 2.0"].map(tech => (
+          {["FastAPI", "FAISS", "LangChain", "Llama 3"].map(tech => (
             <span key={tech} className="px-2 py-1 text-xs text-black/40 bg-black/[0.03] rounded-lg border border-black/[0.06]">
               {tech}
             </span>
@@ -316,7 +316,7 @@ export default function ChatPage() {
               </button>
             </div>
             <p className="text-[10px] text-black/30 text-center mt-3">
-              Powered by FastAPI + FAISS + Gemini 2.0 — querying 15.5K+ real documents.
+              Powered by FastAPI + FAISS + Llama 3 — querying 15.5K+ real documents.
             </p>
           </form>
         </div>
