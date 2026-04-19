@@ -19,7 +19,8 @@ from sentence_transformers import SentenceTransformer
 from langchain.embeddings.base import Embeddings
 from langchain_community.vectorstores import FAISS as LangChainFAISS
 from langchain.docstore.document import Document
-from groq import Groq
+from langchain.docstore.document import Document
+from groq import Groq, AsyncGroq
 
 from src.config import settings
 from src.utils.logger import get_logger
@@ -80,6 +81,7 @@ class GroqLLM:
         self.max_tokens = max_tokens
         
         self.client = Groq(api_key=settings.groq_api_key)
+        self.async_client = AsyncGroq(api_key=settings.groq_api_key)
         logger.info(f"Initialized Groq LLM: {self.model_name}")
     
     def _call(self, prompt: str) -> str:
@@ -97,13 +99,19 @@ class GroqLLM:
             raise
     
     async def acall(self, prompt: str) -> str:
-        """Call Groq API (async via executor)"""
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(
-            _executor,
-            self._call,
-            prompt
-        )
+        """Call Groq API (async natively)"""
+        try:
+            response = await self.async_client.chat.completions.create(
+                model=self.model_name,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"Error calling async Groq: {e}")
+            raise
+
 
 
 class DualStoreRAGPipeline:
@@ -504,7 +512,7 @@ Answer:"""
             answer = self.llm._call(prompt)
         except Exception as e:
             logger.error(f"Error generating answer: {e}")
-            answer = f"Based on the available information: {context[:300]}..."
+            answer = f"Based on the available information: {context[:300]}... [LLM Error: {str(e)}]"
         
         # Calculate latency
         latency_ms = (datetime.now() - start_time).total_seconds() * 1000
@@ -636,7 +644,7 @@ Answer:"""
             answer = await self.llm.acall(prompt)
         except Exception as e:
             logger.error(f"Error generating answer: {e}")
-            answer = f"Based on the available information: {context[:300]}..."
+            answer = f"Based on the available information: {context[:300]}... [LLM Error: {str(e)}]"
         
         # Calculate latency
         latency_ms = (datetime.now() - start_time).total_seconds() * 1000
