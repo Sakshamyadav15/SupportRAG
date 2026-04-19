@@ -266,6 +266,41 @@ async def get_stats():
     }
 
 
+
+@app.get("/stores")
+async def get_stores():
+    """Real vector store info: doc counts directly from FAISS index.ntotal"""
+    pipeline = get_dual_rag_pipeline()
+
+    faq_count = 0
+    ticket_count = 0
+    faq_loaded = pipeline.faq_store is not None
+    ticket_loaded = pipeline.ticket_store is not None
+
+    try:
+        if faq_loaded:
+            faq_count = int(pipeline.faq_store.index.ntotal)
+    except Exception:
+        pass
+
+    try:
+        if ticket_loaded:
+            ticket_count = int(pipeline.ticket_store.index.ntotal)
+    except Exception:
+        pass
+
+    return {
+        "faq_store": {
+            "loaded": faq_loaded,
+            "doc_count": faq_count,
+        },
+        "ticket_store": {
+            "loaded": ticket_loaded,
+            "doc_count": ticket_count,
+        },
+        "total_docs": faq_count + ticket_count,
+    }
+
 # --- Frontend Static Files Serving ---
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"

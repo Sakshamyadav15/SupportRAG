@@ -1,4 +1,4 @@
-﻿# Core Framework
+# Core Framework
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 pydantic==2.5.0
@@ -19,10 +19,6 @@ torch
 # HuggingFace Datasets
 datasets>=2.18.0
 huggingface-hub
-
-# Frontend
-streamlit==1.29.0
-plotly==5.18.0
 
 # Database & Storage
 python-multipart==0.0.6

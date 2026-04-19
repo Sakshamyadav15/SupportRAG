@@ -73,3 +73,7 @@ Thumbs.db
 # Project specific
 *.pkl
 *.index
+
+# Markdown docs (keep only README)
+*.md
+!README.md
