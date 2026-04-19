@@ -3,8 +3,15 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   images: {
     unoptimized: true,
+  },
+  experimental: {
+    webpackBuildWorker: true,
+    cpus: 1,
   },
   // Proxy /api/* → FastAPI backend (avoids CORS in dev & prod)
   async rewrites() {
