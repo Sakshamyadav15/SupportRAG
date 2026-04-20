@@ -182,7 +182,7 @@ export default function ChatPage() {
             <ArrowLeft className="w-4 h-4" />
             <span className="text-sm">Back to Home</span>
           </Link>
-          <h1 className="font-pixel text-sm tracking-[0.2em] text-black/70">SUPPORTRAG</h1>
+          <h1 className="font-pixel text-sm tracking-[0.2em] text-black/70">SAHAYRAG</h1>
           <p className="text-xs text-black/40 mt-2">Dual Vector Store RAG Demo</p>
         </div>
         
@@ -207,7 +207,7 @@ export default function ChatPage() {
           <Link href="/" className="flex items-center gap-2 text-black/60">
             <ArrowLeft className="w-4 h-4" />
           </Link>
-          <h1 className="font-pixel text-xs tracking-[0.2em] text-black/70">SUPPORTRAG</h1>
+          <h1 className="font-pixel text-xs tracking-[0.2em] text-black/70">SAHAYRAG</h1>
           <div className="w-4" />
         </header>
         

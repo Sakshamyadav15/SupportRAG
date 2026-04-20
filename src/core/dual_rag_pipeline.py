@@ -499,7 +499,7 @@ User Question: {question}
 
 Instructions:
 - Provide a clear, helpful answer based on the context
-- If the context comes from a support ticket, acknowledge similar past issues
+- Do NOT assume the provided past tickets or context belong to the current user. Use them strictly as reference to find the correct solution.
 - Be concise but complete
 - If you're not sure, say so
 
@@ -631,7 +631,7 @@ User Question: {question}
 
 Instructions:
 - Provide a clear, helpful answer based on the context
-- If the context comes from a support ticket, acknowledge similar past issues
+- Do NOT assume the provided past tickets or context belong to the current user. Use them strictly as reference to find the correct solution.
 - Be concise but complete
 - If you're not sure, say so
 

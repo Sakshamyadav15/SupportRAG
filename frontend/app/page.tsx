@@ -553,7 +553,7 @@ export default function AgenticPage() {
             Transform your<br />customer support.
           </h2>
           <p className="text-sm text-black/45 leading-relaxed mb-10">
-            See how SupportRAG answers real questions in real-time. Experience the power of dual vector store RAG.
+            See how SahayRAG answers real questions in real-time. Experience the power of dual vector store RAG.
           </p>
           <a
             href="/chat"
@@ -568,7 +568,7 @@ export default function AgenticPage() {
       {/* ── FOOTER ────────────────────────────────────────────────────────── */}
       <footer className="py-10 px-6 md:px-12 lg:px-20 border-t border-black/[0.06]">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
-          <span className="font-pixel text-xs tracking-[0.25em] text-black/50">SUPPORTRAG</span>
+          <span className="font-pixel text-xs tracking-[0.25em] text-black/50">SAHAYRAG</span>
 
           {/* Nav sections */}
           <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
@@ -596,7 +596,7 @@ export default function AgenticPage() {
           </div>
         </div>
         <div className="max-w-6xl mx-auto mt-8 pt-6 border-t border-black/[0.04]">
-          <span className="text-xs text-black/20">© 2026 SupportRAG by Saksham Yadav. All rights reserved.</span>
+          <span className="text-xs text-black/20">© 2026 SahayRAG by Saksham Yadav. All rights reserved.</span>
         </div>
       </footer>
     </div>
