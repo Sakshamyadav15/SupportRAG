@@ -189,13 +189,7 @@ export default function AgenticPage() {
             {/* Big left card — full width now that multi-agent is removed */}
             <BentoCard className="col-span-12 p-8 min-h-[200px] flex flex-col justify-between relative overflow-hidden" delay={0}>
               {/* Arc background image — always fills container, objects pushed to bottom third */}
-              <img
-                src="/images/arc.png"
-                alt=""
-                aria-hidden="true"
-                className="absolute inset-0 w-full h-full object-cover"
-                style={{ objectPosition: "center 70%" }}
-              />
+
               {/* Progressive blur layer — blurs from 45% downward */}
               <div className="absolute inset-0" style={{
                 maskImage: "linear-gradient(to bottom, transparent 45%, black 100%)",
@@ -524,13 +518,7 @@ export default function AgenticPage() {
       {/* ── CTA ───────────────────────────────────────────────────────────── */}
       <section className="relative py-32 px-6 md:px-12 lg:px-20 border-t border-black/[0.06] overflow-hidden">
         {/* Glass panels image — anchored to bottom center */}
-        <img
-          src="/images/footer.png"
-          alt=""
-          aria-hidden="true"
-          className="absolute bottom-0 left-0 w-full object-cover object-bottom pointer-events-none select-none"
-          style={{ opacity: 0.85 }}
-        />
+
         {/* Progressive blur from bottom — blends into site bg */}
         <div
           className="absolute inset-0 pointer-events-none"

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 
-const LETTERS = ["S", "U", "P", "P", "O", "R", "T", "R", "A", "G"]
+const LETTERS = ["S", "A", "H", "A", "Y", "R", "A", "G"]
 
 const LETTER_IN_STAGGER  = 90    // ms between each letter appearing
 const LETTER_IN_DUR      = 700   // duration of each letter appear transition

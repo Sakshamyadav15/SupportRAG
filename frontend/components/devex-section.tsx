@@ -11,7 +11,7 @@ const STEPS = [
     lang: "bash",
     code: [
       { type: "comment", text: "# Clone the repository" },
-      { type: "command", text: "git clone github.com/SupportRAG" },
+      { type: "command", text: "git clone github.com/Sakshamyadav15/SupportRAG" },
       { type: "gap" },
       { type: "comment", text: "# Install dependencies" },
       { type: "command", text: "pip install -r requirements.txt" },

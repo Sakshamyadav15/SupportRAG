@@ -1,12 +1,10 @@
-# Byte-compiled / optimized / DLL files
+# ============================================================
+# Python
+# ============================================================
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
-
-# Distribution / packaging
 .Python
 build/
 develop-eggs/
@@ -24,11 +22,17 @@ wheels/
 .installed.cfg
 *.egg
 
-# PyInstaller
-*.manifest
-*.spec
+# ============================================================
+# Virtual environments
+# ============================================================
+.venv/
+venv/
+env/
+ENV/
 
-# Unit test / coverage reports
+# ============================================================
+# Testing & coverage
+# ============================================================
 htmlcov/
 .tox/
 .coverage
@@ -40,40 +44,60 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 
-# Virtual environments
-venv/
-env/
-ENV/
-.venv
-
-# IDE
+# ============================================================
+# IDE & OS
+# ============================================================
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-
-# Environment variables
-.env
-
-# Logs
-logs/
-*.log
-
-# Vector database
-data/vector_store/
-
-# Jupyter Notebooks
-.ipynb_checkpoints
-
-# OS
 .DS_Store
 Thumbs.db
 
-# Project specific
+# ============================================================
+# Environment variables — never commit secrets
+# ============================================================
+.env
+*.env.local
+
+# ============================================================
+# Logs & debug output
+# ============================================================
+logs/
+*.log
+stderr.txt
+stdout.txt
+worker_out.txt
+
+# ============================================================
+# Vector database — too large for git
+# ============================================================
+data/vector_stores/
 *.pkl
 *.index
 
-# Markdown docs (keep only README)
-*.md
-!README.md
+# ============================================================
+# Jupyter
+# ============================================================
+.ipynb_checkpoints
+
+# ============================================================
+# Node / Next.js (frontend)
+# ============================================================
+node_modules/
+frontend/.next/
+frontend/out/
+frontend/.vercel/
+
+# ============================================================
+# PyInstaller
+# ============================================================
+*.manifest
+*.spec
+
+# ============================================================
+# Misc project-specific
+# ============================================================
+output.json
+utf8.json
