@@ -43,37 +43,37 @@ Queries are answered using a **dual-store retrieval strategy**:
 ### Architecture
 
 ```mermaid
-flowchart TD
-    User([User Query]) --> RAG
+graph TB
+    USER["  User Query  "]
 
-    subgraph RAG ["DualStoreRAGPipeline"]
+    subgraph PIPELINE["  DualStoreRAGPipeline  "]
         direction TB
         
-        Split["Parallel Search (ThreadPoolExecutor)"]
-        FAQ[("FAQ Store\n10,580 Docs\nFAISS IVF")]
-        Ticket[("Ticket Store\n5,000 Docs\nFAISS")]
+        subgraph SEARCH["  Parallel Search (ThreadPoolExecutor)  "]
+            FAQ["FAQ Store\n10,580 Docs\nFAISS IVF"]
+            TICKET["Ticket Store\n5,000 Docs\nFAISS"]
+        end
         
-        Split --> FAQ
-        Split --> Ticket
-        
-        Fallback{"Fallback Logic\nFAQ Conf < 65%?"}
-        
-        FAQ --> Fallback
-        Ticket -.-> Fallback
-        
+        FALLBACK{"Fallback Logic\nFAQ Conf < 65%?"}
         LLM["Groq Llama-3.3-70b"]
         
-        Fallback --> LLM
+        FAQ --> FALLBACK
+        TICKET -.-> FALLBACK
+        FALLBACK --> LLM
     end
 
-    RAG --> Output([Answer + Citations\nConfidence + Latency])
+    USER --> PIPELINE
+    PIPELINE --> OUTPUT["  Answer + Citations\nConfidence + Latency  "]
 
-    style FAQ fill:#bfb,stroke:#333,stroke-width:2px
-    style Ticket fill:#fbb,stroke:#333,stroke-width:2px
-    style LLM fill:#bbf,stroke:#333,stroke-width:2px
-    style Fallback fill:#ff9,stroke:#333,stroke-width:2px
-    style User fill:#eee,stroke:#333,stroke-width:2px
-    style Output fill:#eee,stroke:#333,stroke-width:2px
+    style USER fill:#2196F3,color:#fff,stroke:none
+    style OUTPUT fill:#4CAF50,color:#fff,stroke:none
+    style FAQ fill:#FF9800,color:#fff,stroke:none
+    style TICKET fill:#E91E63,color:#fff,stroke:none
+    style FALLBACK fill:#9C27B0,color:#fff,stroke:none
+    style LLM fill:#455A64,color:#fff,stroke:none
+
+    style PIPELINE fill:#0a1a2a,stroke:#2196F3,stroke-width:1px,color:#aaa
+    style SEARCH fill:#2a1800,stroke:#FF9800,stroke-width:1px,color:#aaa
 ```
 
 ---
@@ -85,58 +85,67 @@ flowchart TD
 The System Platform is a production-grade distributed job processing system built independently of the RAG engine and designed for **horizontal scalability**. It manages the full lifecycle of RAG jobs: ingestion, queuing, dispatch, execution, persistence, and result retrieval.
 
 ```mermaid
-flowchart TD
-    Browser([Browser]) --> Nginx
+graph TB
+    BROWSER["  Browser  "]
 
-    subgraph Gateway ["Gateway Layer"]
-        Nginx["Nginx Gateway\nReverse Proxy\nRate Limiting (30r/s)"]
+    subgraph GATEWAY["  Gateway Layer  "]
+        NGINX["Nginx Gateway\nReverse Proxy\nRate Limiting (30r/s)"]
     end
 
-    subgraph AppLayer ["API Replicas (FastAPI)"]
+    subgraph APPLAYER["  API Replicas (FastAPI)  "]
         direction LR
         API1["API-1\n:8000"]
         API2["API-2\n:8000"]
     end
 
-    Nginx --> API1
-    Nginx --> API2
-
-    subgraph Queue ["Message Broker"]
-        RedisQueue[("Redis\njob_queue (LPUSH / BRPOP)\nRate limits + Cache")]
+    subgraph QUEUE["  Message Broker  "]
+        REDIS["Redis\njob_queue (LPUSH / BRPOP)\nRate limits + Cache"]
     end
 
-    API1 -- lpush job_id --> RedisQueue
-    API2 -- lpush job_id --> RedisQueue
-
-    subgraph Workers ["Scalable Worker Nodes"]
+    subgraph WORKERS["  Scalable Worker Nodes  "]
         direction LR
-        Worker1["Worker-1"]
-        Worker2["Worker-2"]
+        W1["Worker-1"]
+        W2["Worker-2"]
     end
 
-    RedisQueue -- brpop --> Worker1
-    RedisQueue -- brpop --> Worker2
+    subgraph PIPELINES["  In-Process RAG  "]
+        RAG1["DualStoreRAGPipeline"]
+        RAG2["DualStoreRAGPipeline"]
+    end
 
-    RAG1["DualStoreRAGPipeline"]
-    RAG2["DualStoreRAGPipeline"]
+    subgraph DB["  Persistent Storage  "]
+        PG["PostgreSQL\nPersistent job state"]
+    end
+
+    BROWSER --> GATEWAY
+    GATEWAY --> APPLAYER
+    API1 -- lpush job_id --> REDIS
+    API2 -- lpush job_id --> REDIS
+    REDIS -- brpop --> WORKERS
     
-    Worker1 --> RAG1
-    Worker2 --> RAG2
+    W1 --> RAG1
+    W2 --> RAG2
 
-    subgraph DB ["Persistent Storage"]
-        Postgres[("PostgreSQL\nPersistent job state")]
-    end
+    RAG1 --> DB
+    RAG2 --> DB
 
-    RAG1 --> Postgres
-    RAG2 --> Postgres
+    style BROWSER fill:#2196F3,color:#fff,stroke:none
+    style NGINX fill:#9C27B0,color:#fff,stroke:none
+    style API1 fill:#4CAF50,color:#fff,stroke:none
+    style API2 fill:#4CAF50,color:#fff,stroke:none
+    style REDIS fill:#E91E63,color:#fff,stroke:none
+    style W1 fill:#FF9800,color:#fff,stroke:none
+    style W2 fill:#FF9800,color:#fff,stroke:none
+    style RAG1 fill:#455A64,color:#fff,stroke:none
+    style RAG2 fill:#455A64,color:#fff,stroke:none
+    style PG fill:#1D9E75,color:#fff,stroke:none
 
-    style Nginx fill:#f9f,stroke:#333,stroke-width:2px
-    style API1 fill:#bbf,stroke:#333,stroke-width:2px
-    style API2 fill:#bbf,stroke:#333,stroke-width:2px
-    style RedisQueue fill:#fbb,stroke:#333,stroke-width:2px
-    style Worker1 fill:#ddd,stroke:#333,stroke-width:2px
-    style Worker2 fill:#ddd,stroke:#333,stroke-width:2px
-    style Postgres fill:#bfb,stroke:#333,stroke-width:2px
+    style GATEWAY fill:#1a0a2a,stroke:#9C27B0,stroke-width:1px,color:#aaa
+    style APPLAYER fill:#0a2a0a,stroke:#4CAF50,stroke-width:1px,color:#aaa
+    style QUEUE fill:#2a0a18,stroke:#E91E63,stroke-width:1px,color:#aaa
+    style WORKERS fill:#2a1800,stroke:#FF9800,stroke-width:1px,color:#aaa
+    style PIPELINES fill:#1a1a1a,stroke:#555,stroke-width:1px,color:#aaa
+    style DB fill:#0a2a22,stroke:#1D9E75,stroke-width:1px,color:#aaa
 ```
 
 ### Key Engineering Decisions
@@ -229,21 +238,21 @@ Cache key namespaces:
 #### 4. Persistent Job State + Fault Tolerance
 
 ```mermaid
-flowchart LR
-    Pending(["PENDING"])
-    Processing(["PROCESSING"])
-    Completed(["COMPLETED"])
-    Failed(["FAILED"])
+graph LR
+    PENDING["  PENDING  "]
+    PROCESSING["  PROCESSING  "]
+    COMPLETED["  COMPLETED  "]
+    FAILED["  FAILED  "]
 
-    Pending -- worker picks up --> Processing
-    Processing -- success --> Completed
-    Processing -- exception --> Failed
-    Failed -- requeue (retry) --> Pending
+    PENDING -- worker picks up --> PROCESSING
+    PROCESSING -- success --> COMPLETED
+    PROCESSING -- exception --> FAILED
+    FAILED -- requeue (retry) --> PENDING
     
-    style Pending fill:#ff9,stroke:#333,stroke-width:2px
-    style Processing fill:#bbf,stroke:#333,stroke-width:2px
-    style Completed fill:#bfb,stroke:#333,stroke-width:2px
-    style Failed fill:#fbb,stroke:#333,stroke-width:2px
+    style PENDING fill:#FF9800,color:#fff,stroke:none
+    style PROCESSING fill:#2196F3,color:#fff,stroke:none
+    style COMPLETED fill:#4CAF50,color:#fff,stroke:none
+    style FAILED fill:#D32F2F,color:#fff,stroke:none
 ```
 
 - Every state transition is **written to PostgreSQL before** the worker acts — no lost jobs on crash
@@ -279,32 +288,32 @@ async def _process_job(self, job_id: int):
 
 ```mermaid
 sequenceDiagram
-    participant User
-    participant Frontend as Next.js UI
+    participant USER as User
+    participant UI as Next.js UI
     participant API as FastAPI
     participant DB as PostgreSQL
-    participant Redis
-    participant Worker as Background Worker
+    participant REDIS as Redis
+    participant WORKER as Background Worker
 
-    User->>Frontend: Types question
-    Frontend->>API: POST /jobs (JWT Auth)
+    USER->>UI: Types question
+    UI->>API: POST /jobs (JWT Auth)
     API->>DB: Creates Job (status=PENDING)
-    API->>Redis: lpush job_id
-    API-->>Frontend: returns {id, status="PENDING"}
+    API->>REDIS: lpush job_id
+    API-->>UI: returns {id, status="PENDING"}
     
     loop Every 1 second
-        Frontend->>API: Polls GET /jobs/{id}
+        UI->>API: Polls GET /jobs/{id}
     end
     
-    Worker->>Redis: BRPOP blocks on queue
-    Redis-->>Worker: Receives job_id
-    Worker->>DB: Marks Job (status=PROCESSING)
-    Worker->>Worker: Runs DualStoreRAGPipeline.aquery()
-    Worker->>DB: Marks Job (status=COMPLETED)
-    Worker->>Redis: Invalidates job cache
+    WORKER->>REDIS: BRPOP blocks on queue
+    REDIS-->>WORKER: Receives job_id
+    WORKER->>DB: Marks Job (status=PROCESSING)
+    WORKER->>WORKER: Runs DualStoreRAGPipeline.aquery()
+    WORKER->>DB: Marks Job (status=COMPLETED)
+    WORKER->>REDIS: Invalidates job cache
     
-    API-->>Frontend: Returns {status="COMPLETED", data=...}
-    Frontend-->>User: Displays answer & citations
+    API-->>UI: Returns {status="COMPLETED", data=...}
+    UI-->>USER: Displays answer & citations
 ```
 
 ---
