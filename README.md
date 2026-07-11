@@ -1,4 +1,4 @@
-﻿# SupportRAG + System Platform
+# SupportRAG + System Platform
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104-009688.svg)](https://fastapi.tiangolo.com)
@@ -42,29 +42,38 @@ Queries are answered using a **dual-store retrieval strategy**:
 
 ### Architecture
 
-```
-User Query
-    |
-    v
-+---------------------------+
-|   DualStoreRAGPipeline    |
-|                           |
-|  +----------+  +--------+ |
-|  | FAQ Store|  |Ticket  | |   Both searched in parallel
-|  | 10,580   |  |Store   | |   via ThreadPoolExecutor
-|  | FAISS IVF|  |5,000   | |
-|  | 205 clus |  |FAISS   | |
-|  +----+-----+  +---+----+ |
-|       +----------+        |
-|                  |        |
-|     Fallback logic        |   FAQ confidence < 65%?
-|     (65% threshold)       |   --> use Ticket Store answer
-|                  |        |
-|       Groq Llama-3.3-70b  |
-+------------------+--------+
-                   |
-         Answer + Citations
-         + Confidence + Latency
+```mermaid
+flowchart TD
+    User([User Query]) --> RAG
+
+    subgraph RAG ["DualStoreRAGPipeline"]
+        direction TB
+        
+        Split["Parallel Search (ThreadPoolExecutor)"]
+        FAQ[("FAQ Store\n10,580 Docs\nFAISS IVF")]
+        Ticket[("Ticket Store\n5,000 Docs\nFAISS")]
+        
+        Split --> FAQ
+        Split --> Ticket
+        
+        Fallback{"Fallback Logic\nFAQ Conf < 65%?"}
+        
+        FAQ --> Fallback
+        Ticket -.-> Fallback
+        
+        LLM["Groq Llama-3.3-70b"]
+        
+        Fallback --> LLM
+    end
+
+    RAG --> Output([Answer + Citations\nConfidence + Latency])
+
+    style FAQ fill:#bfb,stroke:#333,stroke-width:2px
+    style Ticket fill:#fbb,stroke:#333,stroke-width:2px
+    style LLM fill:#bbf,stroke:#333,stroke-width:2px
+    style Fallback fill:#ff9,stroke:#333,stroke-width:2px
+    style User fill:#eee,stroke:#333,stroke-width:2px
+    style Output fill:#eee,stroke:#333,stroke-width:2px
 ```
 
 ---
@@ -75,44 +84,59 @@ User Query
 
 The System Platform is a production-grade distributed job processing system built independently of the RAG engine and designed for **horizontal scalability**. It manages the full lifecycle of RAG jobs: ingestion, queuing, dispatch, execution, persistence, and result retrieval.
 
-```
-Browser
-  |
-  v
-+-------------------+
-|   Nginx Gateway   |  <-- Reverse proxy, load balances across API replicas
-|   (least_conn)    |      Rate limiting at network layer (30r/s zone)
-+----+----------+---+      Automatic failover (proxy_next_upstream)
-     |          |
-     v          v
-+--------+  +--------+
-| API-1  |  | API-2  |  <-- Horizontally scaled FastAPI replicas
-| :8000  |  | :8000  |      JWT auth, token-bucket rate limiter,
-+---+----+  +----+---+      read-through + write-through Redis cache
-    |             |
-    +------+------+
-           | lpush job_id
-           v
-    +-------------+
-    |    Redis    |  <-- Priority-aware FIFO queue (LPUSH / BRPOP)
-    |  job_queue  |      Also stores rate-limit buckets + job cache
-    +------+------+
-           |
-    +------+------+
-    |             |
-    v             v
-+--------+  +--------+
-|Worker-1|  |Worker-2|  <-- Horizontally scalable worker nodes
-+--------+  +--------+      Each independently polls via BRPOP
-    |                       Automatic recovery on crash
-    v
-DualStoreRAGPipeline
-(runs in-process, no HTTP)
-    |
-    v
-+-------------+
-| PostgreSQL  |  <-- Persistent job state: PENDING -> PROCESSING -> COMPLETED/FAILED
-+-------------+      Fault-tolerant: state survives worker crashes
+```mermaid
+flowchart TD
+    Browser([Browser]) --> Nginx
+
+    subgraph Gateway ["Gateway Layer"]
+        Nginx["Nginx Gateway\nReverse Proxy\nRate Limiting (30r/s)"]
+    end
+
+    subgraph AppLayer ["API Replicas (FastAPI)"]
+        direction LR
+        API1["API-1\n:8000"]
+        API2["API-2\n:8000"]
+    end
+
+    Nginx --> API1
+    Nginx --> API2
+
+    subgraph Queue ["Message Broker"]
+        RedisQueue[("Redis\njob_queue (LPUSH / BRPOP)\nRate limits + Cache")]
+    end
+
+    API1 -- lpush job_id --> RedisQueue
+    API2 -- lpush job_id --> RedisQueue
+
+    subgraph Workers ["Scalable Worker Nodes"]
+        direction LR
+        Worker1["Worker-1"]
+        Worker2["Worker-2"]
+    end
+
+    RedisQueue -- brpop --> Worker1
+    RedisQueue -- brpop --> Worker2
+
+    RAG1["DualStoreRAGPipeline"]
+    RAG2["DualStoreRAGPipeline"]
+    
+    Worker1 --> RAG1
+    Worker2 --> RAG2
+
+    subgraph DB ["Persistent Storage"]
+        Postgres[("PostgreSQL\nPersistent job state")]
+    end
+
+    RAG1 --> Postgres
+    RAG2 --> Postgres
+
+    style Nginx fill:#f9f,stroke:#333,stroke-width:2px
+    style API1 fill:#bbf,stroke:#333,stroke-width:2px
+    style API2 fill:#bbf,stroke:#333,stroke-width:2px
+    style RedisQueue fill:#fbb,stroke:#333,stroke-width:2px
+    style Worker1 fill:#ddd,stroke:#333,stroke-width:2px
+    style Worker2 fill:#ddd,stroke:#333,stroke-width:2px
+    style Postgres fill:#bfb,stroke:#333,stroke-width:2px
 ```
 
 ### Key Engineering Decisions
@@ -204,18 +228,22 @@ Cache key namespaces:
 
 #### 4. Persistent Job State + Fault Tolerance
 
-```
-Job state machine (PostgreSQL):
+```mermaid
+flowchart LR
+    Pending(["PENDING"])
+    Processing(["PROCESSING"])
+    Completed(["COMPLETED"])
+    Failed(["FAILED"])
 
-PENDING ──(worker picks up)──> PROCESSING ──(success)──> COMPLETED
-   ^                                |
-   |                          (exception)
-   |                                v
-   +──────────────────────────> FAILED
-                                    |
-                               (requeue)
-                                    |
-                               PENDING (retry)
+    Pending -- worker picks up --> Processing
+    Processing -- success --> Completed
+    Processing -- exception --> Failed
+    Failed -- requeue (retry) --> Pending
+    
+    style Pending fill:#ff9,stroke:#333,stroke-width:2px
+    style Processing fill:#bbf,stroke:#333,stroke-width:2px
+    style Completed fill:#bfb,stroke:#333,stroke-width:2px
+    style Failed fill:#fbb,stroke:#333,stroke-width:2px
 ```
 
 - Every state transition is **written to PostgreSQL before** the worker acts — no lost jobs on crash
@@ -249,22 +277,34 @@ async def _process_job(self, job_id: int):
 
 ## Integrated Flow: End-to-End
 
-```
-1. User types question in Next.js UI
-2. Frontend auto-authenticates (JWT) with System Platform API
-3. POST /jobs  →  API creates Job(status=PENDING) in PostgreSQL
-                  →  API publishes job_id to Redis queue (lpush)
-                  →  API returns {id, status: "PENDING"} immediately
-4. Frontend polls GET /jobs/{id} every second
-5. Worker (running independently):
-   - BRPOP blocks on Redis queue
-   - Receives job_id
-   - Marks Job(status=PROCESSING) in PostgreSQL
-   - Calls DualStoreRAGPipeline.aquery(question) in-process
-   - Groq rate limiter gates LLM calls within free-tier limits
-   - Marks Job(status=COMPLETED, result_data=JSON) in PostgreSQL
-   - Invalidates Redis cache for this job
-6. Frontend poll sees status=COMPLETED, displays answer + citations
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend as Next.js UI
+    participant API as FastAPI
+    participant DB as PostgreSQL
+    participant Redis
+    participant Worker as Background Worker
+
+    User->>Frontend: Types question
+    Frontend->>API: POST /jobs (JWT Auth)
+    API->>DB: Creates Job (status=PENDING)
+    API->>Redis: lpush job_id
+    API-->>Frontend: returns {id, status="PENDING"}
+    
+    loop Every 1 second
+        Frontend->>API: Polls GET /jobs/{id}
+    end
+    
+    Worker->>Redis: BRPOP blocks on queue
+    Redis-->>Worker: Receives job_id
+    Worker->>DB: Marks Job (status=PROCESSING)
+    Worker->>Worker: Runs DualStoreRAGPipeline.aquery()
+    Worker->>DB: Marks Job (status=COMPLETED)
+    Worker->>Redis: Invalidates job cache
+    
+    API-->>Frontend: Returns {status="COMPLETED", data=...}
+    Frontend-->>User: Displays answer & citations
 ```
 
 ---
